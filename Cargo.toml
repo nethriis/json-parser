@@ -6,6 +6,7 @@ authors = ["Nethris <david.abou@epitech.eu>"]
 edition = "2021"
 keywords = ["json", "parser", "rust", "serialization"]
 categories = ["parsing", "json", "serialization"]
+documentation = "https://docs.rs/jsonparser"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/nethriis/testing-area"
 rust-version = "1.56"
