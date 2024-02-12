@@ -1,0 +1,21 @@
+[package]
+name = "jsonparser"
+version = "0.1.0"
+description = "A Rust crate designed to efficiently parse JSON data into Rust's typed data structures"
+authors = ["Nethris <david.abou@epitech.eu>"]
+edition = "2021"
+keywords = ["json", "parser", "rust", "serialization"]
+categories = ["parsing", "json", "serialization"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/nethriis/testing-area"
+rust-version = "1.56"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+opt-level = 3
