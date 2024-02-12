@@ -15,13 +15,13 @@ To use this crate in your project, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-json-parser = "0.1.1"
+jsonparser = "0.1.1"
 ```
 
 Then, import it in your Rust file:
 
 ```rust
-use json_parser::JSONValue;
+use jsonparser::JSONValue;
 ```
 
 ## Basic Usage
@@ -39,7 +39,7 @@ let input = r#"
     }
 "#;
 
-let parsed = json_parser::Parser::new(input).parse();
+let parsed = jsonparser::Parser::new(input).parse();
 match parsed {
     Ok(json) => println!("{:#?}", json),
     Err(e) => eprintln!("Failed to parse JSON: {}", e),
