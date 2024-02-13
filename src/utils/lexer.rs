@@ -50,10 +50,10 @@ impl<'a> Lexer<'a> {
                     kind: TokenKind::QuotedString,
                     text: Some(text)
                 })
-            } else if c.is_numeric() {
+            } else if c == '-' || c.is_numeric() {
                 Some(Token {
                     kind: TokenKind::Number,
-                    text: Some(self.consume_while(|c| c.is_numeric()))
+                    text: Some(self.consume_while(|c| c.is_numeric() || c == '.' || c == '-'))
                 })
             } else if c == '(' {
                 self.chars.next();
