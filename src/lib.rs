@@ -1,6 +1,7 @@
 mod utils;
 
-use utils::{Lexer, Parser, JSONValue};
+use utils::{Lexer, Parser};
+pub use utils::{JSONValue, OrderedMap};
 
 /// A JSON parser that can parse a JSON input string to a JSONValue.
 ///
@@ -73,5 +74,35 @@ impl<'a> JSONParser<'a> {
     /// ```
     pub fn parse(&mut self) -> Result<JSONValue, String> {
         self.parser.parse()
+    }
+
+    /// Parse the JSON input to a JSONValue.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use jsonparser::JSONParser;
+    ///
+    /// let input = r#"
+    ///   {
+    ///     "name": "John Doe",
+    ///     "age": 30
+    ///   }
+    /// "#;
+    ///
+    /// let json = match JSONParser::from(input) {
+    ///   Ok(value) => value,
+    ///   Err(e) => {
+    ///     eprintln!("Error: {}", e);
+    ///     return;
+    ///   }
+    /// };
+    ///
+    /// println!("{:#?}", json["name"].as_str());
+    /// ```
+    pub fn from(input: &'a str) -> Result<JSONValue, String>{
+        let mut parser = JSONParser::new(input);
+
+        parser.parse()
     }
 }

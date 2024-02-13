@@ -5,5 +5,4 @@ pub use lexer::Lexer;
 pub use lexer::Token;
 pub use lexer::TokenKind;
 
-pub use parser::Parser;
-pub use parser::JSONValue;
+pub use parser::{Parser, JSONValue, OrderedMap};

@@ -4,6 +4,7 @@ use std::ops::Index;
 
 use crate::utils::lexer::{Lexer, Token, TokenKind};
 
+#[derive(Clone)]
 pub struct OrderedMap<V> {
     order: Vec<String>,
     map: HashMap<String, V>,
@@ -12,6 +13,24 @@ pub struct OrderedMap<V> {
 impl<V: fmt::Debug> fmt::Debug for OrderedMap<V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.order.iter().map(|key| (key, self.map.get(key).unwrap()))).finish()
+    }
+}
+
+impl fmt::Display for OrderedMap<JSONValue> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{")?;
+        for (i, key) in self.order.iter().enumerate() {
+            if i > 0 {
+                write!(f, ", ")?;
+            }
+
+            match self.map.get(key).expect("Key not found") {
+                JSONValue::String(_) => write!(f, "\"{}\": \"{}\"", key, self.map[key])?,
+                JSONValue::Null => write!(f, "\"{}\": null", key)?,
+                _ => write!(f, "\"{}\": {}", key, self.map[key])?
+            }
+        }
+        write!(f, "}}")
     }
 }
 
@@ -45,7 +64,9 @@ impl<V> OrderedMap<V> {
         }
     }
 
-    pub fn insert(&mut self, key: String, value: V) {
+    pub fn insert(&mut self, key: &str, value: V) {
+        let key = key.to_string();
+
         if !self.map.contains_key(&key) {
             self.order.push(key.clone());
         }
@@ -57,6 +78,7 @@ impl<V> OrderedMap<V> {
     }
 }
 
+#[derive(Clone)]
 pub enum JSONValue {
     Object(OrderedMap<JSONValue>),
     Array(Vec<JSONValue>),
@@ -173,13 +195,34 @@ impl JSONValue {
     /// ```no_run
     /// let mut object = OrderedMap::new();
     ///
-    /// object.insert("name".to_string(), JSONValue::String("John Doe".to_string()));
-    /// object.insert("age".to_string(), JSONValue::Number(30.0));
+    /// object.insert("name", JSONValue::String("John Doe".to_string()));
+    /// object.insert("age", JSONValue::Number(30.0));
     /// let value = JSONValue::Object(object);
     ///
     /// assert_eq!(value.as_object(), Some(&object));
     /// ```
     pub fn as_object(&self) -> Option<&OrderedMap<JSONValue>> {
+        match self {
+            JSONValue::Object(o) => Some(o),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as an object if it is an object.
+    /// Returns None otherwise.
+    /// This method allows modifying the object.
+    ///
+    /// # Example
+    /// ```no_run
+    /// let mut object = OrderedMap::new();
+    ///
+    /// object.insert("name", JSONValue::String("John Doe".to_string()));
+    /// object.insert("age", JSONValue::Number(30.0));
+    /// let mut value = JSONValue::Object(object);
+    ///
+    /// value.as_object_mut().unwrap().insert("isStudent", JSONValue::Boolean(false));
+    /// ```
+    pub fn as_object_mut(&mut self) -> Option<&mut OrderedMap<JSONValue>> {
         match self {
             JSONValue::Object(o) => Some(o),
             _ => None,
@@ -302,7 +345,7 @@ impl<'a> Parser<'a> {
             }
             let value = self.parse_value()?;
 
-            object.insert(key, value);
+            object.insert(key.as_str(), value);
             match self.current_token {
                 Some(ref token) if token.kind == TokenKind::Comma => {
                     self.next_token();

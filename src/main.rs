@@ -25,9 +25,7 @@ fn main() {
         }
     "#;
 
-    let mut parser = JSONParser::new(input);
-
-    let json = match parser.parse() {
+    let json = match JSONParser::from(input) {
         Ok(value) => value,
         Err(e) => {
             eprintln!("Error: {}", e);
@@ -35,5 +33,5 @@ fn main() {
         }
     };
 
-    println!("{:#?}", json["name"].as_str());
+    println!("{:?}", json);
 }

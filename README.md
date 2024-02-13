@@ -15,22 +15,24 @@ To use this crate in your project, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-jsonparser = "0.1.1"
+jsonparser = "0.1.3"
 ```
 
 Then, import it in your Rust file:
 
 ```rust
-use jsonparser::JSONValue;
+use jsonparser::*;
 ```
 
 ## Basic Usage
 
 ### Parsing JSON to Rust
 
-To parse a JSON string into a Rust `JSONValue`, use the `parse` function provided by the crate:
+To parse a JSON string into a Rust `JSONValue`, use the `from` function provided by the crate:
 
 ```rust
+use jsonparser::JSONParser;
+
 let input = r#"
     {
         "name": "John Doe",
@@ -39,8 +41,7 @@ let input = r#"
     }
 "#;
 
-let parsed = jsonparser::Parser::new(input).parse();
-match parsed {
+match JSONParser::from(input) {
     Ok(json) => println!("{:#?}", json),
     Err(e) => eprintln!("Failed to parse JSON: {}", e),
 }
