@@ -1,6 +1,6 @@
 [package]
 name = "jsonparser"
-version = "0.1.4"
+version = "0.1.5"
 description = "A Rust crate designed to efficiently parse JSON data into Rust's typed data structures"
 authors = ["Nethris <david.abou@epitech.eu>"]
 edition = "2021"
