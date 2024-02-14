@@ -70,4 +70,4 @@ Contributions are welcome! If you have suggestions for improvements or find any 
 
 ## License
 
-This project is licensed under the [Apache-2.0](https://github.com/nethriis/json-parser/blob/main/LICENSE) file for details.
+This project is licensed under the [Apache-2.0 license](https://github.com/nethriis/json-parser/blob/main/LICENSE).
