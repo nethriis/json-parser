@@ -269,6 +269,47 @@ impl<'a> Index<&'a str> for JSONValue {
     }
 }
 
+pub trait Serialize {
+    fn serialize(&self) -> String;
+}
+
+impl Serialize for JSONValue {
+    /// Serialize a JSON value to a string.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// let value = JSONValue::Object(OrderedMap::new());
+    ///
+    /// value.insert("name", JSONValue::String("John Doe".to_string()));
+    /// value.insert("age", JSONValue::Number(30.0));
+    ///
+    /// assert_eq!(serialize(&value), r#"{"name":"John Doe","age":30}"#);
+    /// ```
+    fn serialize(&self) -> String {
+        match self {
+            JSONValue::String(s) => format!("\"{}\"", s),
+            JSONValue::Number(n) => n.to_string(),
+            JSONValue::Boolean(b) => b.to_string(),
+            JSONValue::Null => "null".to_string(),
+            JSONValue::Array(arr) => {
+                let parts = arr.iter().map(|value| value.serialize()).collect::<Vec<String>>();
+
+                format!("[{}]", parts.join(","))
+            },
+            JSONValue::Object(obj) => {
+                let parts = obj.order.iter().map(|key| {
+                    let value = obj.get(key).unwrap();
+
+                    format!("\"{}\":{}", key, value.serialize())
+                }).collect::<Vec<String>>();
+
+                format!("{{{}}}", parts.join(","))
+            }
+        }
+    }
+}
+
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Option<Token>

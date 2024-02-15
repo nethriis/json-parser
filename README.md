@@ -15,7 +15,7 @@ To use this crate in your project, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-jsonparser = "0.1.6"
+jsonparser = "0.1.7"
 ```
 
 Then, import it in your Rust file:
