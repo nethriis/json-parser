@@ -37,9 +37,9 @@ fn main() {
     println!("{:?}", json);
 
     let schema = JSONSchema::new([
-        ("name", StringType::new().min_length(6).boxed()),
+        ("name", StringType::new().includes("John").boxed()),
         ("age", NumberType::new().gt(18.0).boxed()),
-        ("cars", ArrayType::new().all(ObjectType::new().boxed()).boxed()),
+        ("cars", ArrayType::new().every(ObjectType::new().boxed()).boxed()),
         ("isStudent", BooleanType::new().falsy().boxed()),
         ("address", ObjectType::new()
             .property("street", StringType::new().boxed())

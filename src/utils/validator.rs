@@ -66,7 +66,11 @@ pub trait Validator {
 
 pub struct StringType {
     min_length: Option<usize>,
-    max_length: Option<usize>
+    max_length: Option<usize>,
+    length: Option<usize>,
+    starts_with: Option<String>,
+    ends_with: Option<String>,
+    includes: Option<String>
 }
 
 impl StringType {
@@ -74,7 +78,11 @@ impl StringType {
     pub fn new() -> Self {
         Self {
             min_length: None,
-            max_length: None
+            max_length: None,
+            length: None,
+            starts_with: None,
+            ends_with: None,
+            includes: None
         }
     }
 
@@ -87,6 +95,30 @@ impl StringType {
     /// Set the maximum length of the string.
     pub fn max_length(mut self, max: usize) -> Self {
         self.max_length = Some(max);
+        self
+    }
+
+    /// Set the exact length of the string.
+    pub fn length(mut self, length: usize) -> Self {
+        self.length = Some(length);
+        self
+    }
+
+    /// Set the expected starting of the string.
+    pub fn starts_with(mut self, value: &str) -> Self {
+        self.starts_with = Some(value.to_string());
+        self
+    }
+
+    /// Set the expected ending of the string.
+    pub fn ends_with(mut self, value: &str) -> Self {
+        self.ends_with = Some(value.to_string());
+        self
+    }
+
+    /// Set the string to include a specific substring.
+    pub fn includes(mut self, value: &str) -> Self {
+        self.includes = Some(value.to_string());
         self
     }
 
@@ -109,6 +141,30 @@ impl Validator for StringType {
                 if let Some(max) = self.max_length {
                     if s.len() > max {
                         return Err(format!("String is too long (max: {})", max));
+                    }
+                }
+
+                if let Some(length) = self.length {
+                    if s.len() != length {
+                        return Err(format!("String is not the correct length (length: {})", length));
+                    }
+                }
+
+                if let Some(starts_with) = &self.starts_with {
+                    if !s.starts_with(starts_with) {
+                        return Err(format!("String does not start with '{}'", starts_with));
+                    }
+                }
+
+                if let Some(ends_with) = &self.ends_with {
+                    if !s.ends_with(ends_with) {
+                        return Err(format!("String does not end with '{}'", ends_with));
+                    }
+                }
+
+                if let Some(includes) = &self.includes {
+                    if !s.contains(includes) {
+                        return Err(format!("String does not include '{}'", includes));
                     }
                 }
 
@@ -177,8 +233,11 @@ impl Validator for NumberType {
 pub struct ArrayType {
     min_length: Option<usize>,
     max_length: Option<usize>,
+    length: Option<usize>,
     empty: Option<bool>,
-    all: Option<Box<dyn Validator>>
+    every: Option<Box<dyn Validator>>,
+    some: Option<Box<dyn Validator>>,
+    at: Option<(usize, Box<dyn Validator>)>
 }
 
 impl ArrayType {
@@ -187,8 +246,11 @@ impl ArrayType {
         Self {
             min_length: None,
             max_length: None,
+            length: None,
             empty: None,
-            all: None
+            every: None,
+            some: None,
+            at: None
         }
     }
 
@@ -204,15 +266,33 @@ impl ArrayType {
         self
     }
 
+    /// Set the exact length of the array.
+    pub fn length(mut self, length: usize) -> Self {
+        self.length = Some(length);
+        self
+    }
+
     /// Set whether the array can be empty.
     pub fn empty(mut self) -> Self {
         self.empty = Some(true);
         self
     }
 
-    /// Set a rule for all items in the array.
-    pub fn all(mut self, rule: Box<dyn Validator>) -> Self {
-        self.all = Some(rule);
+    /// Set a rule for every items in the array.
+    pub fn every(mut self, rule: Box<dyn Validator>) -> Self {
+        self.every = Some(rule);
+        self
+    }
+
+    /// Set a rule for at least one item in the array.
+    pub fn some(mut self, rule: Box<dyn Validator>) -> Self {
+        self.some = Some(rule);
+        self
+    }
+
+    /// Set a rule for a specific item in the array.
+    pub fn at(mut self, index: usize, rule: Box<dyn Validator>) -> Self {
+        self.at = Some((index, rule));
         self
     }
 
@@ -238,15 +318,38 @@ impl Validator for ArrayType {
                     }
                 }
 
+                if let Some(length) = self.length {
+                    if arr.len() != length {
+                        return Err(format!("Array is not the correct length (length: {})", length));
+                    }
+                }
+
                 if let Some(empty) = self.empty {
                     if empty && arr.is_empty() {
                         return Err("Array is empty".to_string());
                     }
                 }
 
-                if let Some(rule) = &self.all {
+                if let Some(rule) = &self.every {
                     for item in arr {
                         rule.validate(item)?;
+                    }
+                }
+
+                if let Some(rule) = &self.some {
+                    for item in arr {
+                        if rule.validate(item).is_ok() {
+                            return Ok(());
+                        }
+                    }
+                    return Err("No items in the array match the rule".to_string());
+                }
+
+                if let Some((index, rule)) = &self.at {
+                    if let Some(item) = arr.get(*index) {
+                        rule.validate(item)?;
+                    } else {
+                        return Err(format!("Index {} not found", index));
                     }
                 }
 
