@@ -87,7 +87,7 @@ use jsonparser::{JSONParser, JSONValue, JSONSchema, StringType, NumberType, Bool
 let json: JSONValue = JSONParser::from(r#"{ "name": "John Doe", "age": 30, "is_student": false }"#).unwrap();
 let schema = JSONSchema::new([
     ("name", StringType::new().min_length(3).max_length(50).boxed()),
-    ("age", NumberType::new().minimum(18).maximum(100).boxed()),
+    ("age", NumberType::new().gt(18).lt(100).boxed()),
     ("is_student", BooleanType::new().falsy().boxed()),
 ]);
 
