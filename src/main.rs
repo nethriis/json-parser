@@ -1,4 +1,4 @@
-use jsonparser::JSONParser;
+use jsonparser::{ArrayType, BooleanType, JSONParser, JSONSchema, NullType, NumberType, ObjectType, StringType};
 
 fn main() {
     let input = r#"
@@ -19,7 +19,8 @@ fn main() {
             "address": {
                 "street": "123 Main St",
                 "city": "Springfield",
-                "state": "IL"
+                "state": "IL",
+                "zip": 62701
             },
             "spouse": null
         }
@@ -34,4 +35,23 @@ fn main() {
     };
 
     println!("{:?}", json);
+
+    let schema = JSONSchema::new([
+        ("name", StringType::new().min_length(6).boxed()),
+        ("age", NumberType::new().gt(18.0).boxed()),
+        ("cars", ArrayType::new().all(ObjectType::new().boxed()).boxed()),
+        ("isStudent", BooleanType::new().falsy().boxed()),
+        ("address", ObjectType::new()
+            .property("street", StringType::new().boxed())
+            .property("city", StringType::new().boxed())
+            .property("state", StringType::new().boxed())
+            .property("zip", NumberType::new().gt(62700.0).boxed())
+        .boxed()),
+        ("spouse", NullType::new().boxed())
+    ]);
+
+    match schema.validate(&json) {
+        Ok(_) => println!("Valid JSON"),
+        Err(e) => eprintln!("Invalid JSON: {}", e)
+    }
 }

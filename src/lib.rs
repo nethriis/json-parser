@@ -2,6 +2,7 @@ mod utils;
 
 use utils::{Lexer, Parser};
 pub use utils::{JSONValue, OrderedMap, Serialize};
+pub use utils::{JSONSchema, Validator, StringType, NumberType, BooleanType, ArrayType, ObjectType, NullType};
 
 /// A JSON parser that can parse a JSON input string to a JSONValue.
 ///

@@ -15,7 +15,7 @@ To use this crate in your project, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-jsonparser = "0.1.7"
+jsonparser = "0.1.8"
 ```
 
 Then, import it in your Rust file:
@@ -62,6 +62,36 @@ let age = &json["age"];
 if let Some(age) = age.as_f64() {
     println!("Age: {}", age);
 }
+```
+
+### Serialization
+
+To serialize a Rust data structure into a JSON string, use the `serialize` method:
+
+```rust
+use jsonparser::{JSONParser, JSONValue};
+
+let json: JSONValue = JSONParser::from(r#"{ "name": "John Doe", "age": 30, "is_student": false }"#).unwrap();
+let serialized = json.serialize();
+
+assert_eq!(serialized, r#"{"name":"John Doe","age":30,"is_student":false}"#);
+```
+
+### Validation
+
+To validate a JSONValue, use the `validate` method:
+
+```rust
+use jsonparser::{JSONParser, JSONValue, JSONSchema};
+
+let json: JSONValue = JSONParser::from(r#"{ "name": "John Doe", "age": 30, "is_student": false }"#).unwrap();
+let schema = JSONSchema::new([
+    ("name", StringType::new().min_length(3).max_length(50).boxed()),
+    ("age", NumberType::new().minimum(18).maximum(100).boxed()),
+    ("is_student", BooleanType::new().falsy().boxed()),
+]);
+
+assert!(json.validate(&schema).is_ok());
 ```
 
 ## Contribution
