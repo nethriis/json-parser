@@ -82,7 +82,7 @@ assert_eq!(serialized, r#"{"name":"John Doe","age":30,"is_student":false}"#);
 To validate a JSONValue, use the `validate` method:
 
 ```rust
-use jsonparser::{JSONParser, JSONValue, JSONSchema};
+use jsonparser::{JSONParser, JSONValue, JSONSchema, StringType, NumberType, BooleanType};
 
 let json: JSONValue = JSONParser::from(r#"{ "name": "John Doe", "age": 30, "is_student": false }"#).unwrap();
 let schema = JSONSchema::new([
@@ -91,7 +91,7 @@ let schema = JSONSchema::new([
     ("is_student", BooleanType::new().falsy().boxed()),
 ]);
 
-assert!(json.validate(&schema).is_ok());
+assert!(schema.validate(&json).is_ok());
 ```
 
 ## Contribution
