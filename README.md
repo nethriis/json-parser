@@ -1,6 +1,6 @@
-# JSON Parser Crate
+# JSON Parser
 
-This Rust crate provides a robust and efficient solution for parsing JSON data into Rust's strongly-typed data structures. It's designed to simplify the process of converting JSON text into Rust types, such as structs, enums, and other native data types, making it easier to work with JSON data in Rust applications.
+This Rust crate provides a robust and efficient solution for parsing JSON data into Rust's strongly-typed data structures. It's designed to simplify the process of converting JSON text into Rust types and allows you to validate your JSON data with schema-based validation, making it easier to work with JSON data in Rust applications.
 
 ## Features
 
