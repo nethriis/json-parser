@@ -76,6 +76,10 @@ impl<V> OrderedMap<V> {
     pub fn get(&self, key: &str) -> Option<&V> {
         self.map.get(key)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &V)> {
+        self.order.iter().map(move |k| (k, &self.map[k]))
+    }
 }
 
 #[derive(Clone)]

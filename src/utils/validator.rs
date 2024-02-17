@@ -1,9 +1,7 @@
-use std::collections::HashMap;
-
-use crate::JSONValue;
+use crate::{JSONValue, OrderedMap};
 
 pub struct JSONSchema<'a> {
-	rules: HashMap<&'a str, Box<dyn Validator>>
+	rules: OrderedMap<Box<dyn Validator + 'a>>
 }
 
 impl<'a> JSONSchema<'a> {
@@ -19,10 +17,14 @@ impl<'a> JSONSchema<'a> {
     ///   ("age", NumberType::new().gt(18.0).boxed())
     /// ]);
     /// ```
-    pub fn new<T: Into<HashMap<&'a str, Box<dyn Validator>>>>(rules: T) -> Self {
-        Self {
-            rules: rules.into()
+    pub fn new<T: IntoIterator<Item = (&'a str, Box<dyn Validator + 'a>)>>(rules: T) -> Self {
+        let mut ordered_rules = OrderedMap::new();
+
+        for (key, rule) in rules {
+            ordered_rules.insert(key, rule);
         }
+
+        Self { rules: ordered_rules }
     }
 
     /// Validate the given JSONValue against the schema.
@@ -49,10 +51,10 @@ impl<'a> JSONSchema<'a> {
 
         match transformed {
             JSONValue::Object(obj) => {
-                for (key, rule) in &self.rules {
-                    match obj.get(*key) {
-                        Some(value) => rule.validate(value)?,
-                        None => return Err(format!("Key '{}' not found", *key))
+                for (key, rule) in self.rules.iter() {
+                    match obj.get(key as &str) {
+                        Some(value) => rule.validate(key, value)?,
+                        None => return Err(format!("Key '{}' not found", key))
                     }
                 }
                 Ok(transformed.clone())
@@ -67,9 +69,9 @@ impl<'a> JSONSchema<'a> {
             JSONValue::Object(obj) => {
                 let mut transformed = obj.clone();
 
-                for (key, rule) in &self.rules {
-                    if let Some(value) = obj.get(*key) {
-                        transformed.insert(key, rule.transform(value)?);
+                for (key, rule) in self.rules.iter() {
+                    if let Some(value) = obj.get(key as &str) {
+                        transformed.insert(key, rule.transform(key, value)?);
                     }
                 }
                 Ok(JSONValue::Object(transformed))
@@ -80,8 +82,8 @@ impl<'a> JSONSchema<'a> {
 }
 
 pub trait Validator {
-    fn validate(&self, value: &JSONValue) -> Result<(), String>;
-    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+    fn validate(&self, name: &str, value: &JSONValue) -> Result<(), String>;
+    fn transform(&self, _: &str, value: &JSONValue) -> Result<JSONValue, String> {
         Ok(value.clone())
     }
 }
@@ -199,52 +201,52 @@ impl StringType {
 }
 
 impl Validator for StringType {
-    fn validate(&self, value: &JSONValue) -> Result<(), String> {
+    fn validate(&self, key: &str, value: &JSONValue) -> Result<(), String> {
         match value {
             JSONValue::String(s) => {
                 if let Some(min) = self.min_length {
                     if s.len() < min {
-                        return Err(format!("String is too short (min: {})", min));
+                        return Err(format!("{} is too short (min: {})", key, min));
                     }
                 }
 
                 if let Some(max) = self.max_length {
                     if s.len() > max {
-                        return Err(format!("String is too long (max: {})", max));
+                        return Err(format!("{} is too long (max: {})", key, max));
                     }
                 }
 
                 if let Some(length) = self.length {
                     if s.len() != length {
-                        return Err(format!("String is not the correct length (length: {})", length));
+                        return Err(format!("{} is not the correct length (length: {})", key, length));
                     }
                 }
 
                 if let Some(starts_with) = &self.starts_with {
                     if !s.starts_with(starts_with) {
-                        return Err(format!("String does not start with '{}'", starts_with));
+                        return Err(format!("{} does not start with '{}'", key, starts_with));
                     }
                 }
 
                 if let Some(ends_with) = &self.ends_with {
                     if !s.ends_with(ends_with) {
-                        return Err(format!("String does not end with '{}'", ends_with));
+                        return Err(format!("{} does not end with '{}'", key, ends_with));
                     }
                 }
 
                 if let Some(includes) = &self.includes {
                     if !s.contains(includes) {
-                        return Err(format!("String does not include '{}'", includes));
+                        return Err(format!("{} does not include '{}'", key, includes));
                     }
                 }
 
                 Ok(())
             },
-            _ => Err("Type mismatch, expected String".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected String", key))
         }
     }
 
-    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+    fn transform(&self, key: &str, value: &JSONValue) -> Result<JSONValue, String> {
         match value {
             JSONValue::String(s) => {
                 let mut transformed = s.clone();
@@ -275,7 +277,7 @@ impl Validator for StringType {
 
                 Ok(JSONValue::String(transformed))
             },
-            _ => Err("Type mismatch, expected String".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected String", key))
         }
     }
 }
@@ -353,34 +355,34 @@ impl NumberType {
 }
 
 impl Validator for NumberType {
-    fn validate(&self, value: &JSONValue) -> Result<(), String> {
+    fn validate(&self, key: &str, value: &JSONValue) -> Result<(), String> {
         match value {
             JSONValue::Number(n) => {
                 if let Some(min) = self.min {
                     if n < &min {
-                        return Err(format!("Number is too small (min: {})", min));
+                        return Err(format!("{} is too small (min: {})", key, min));
                     }
                 }
 
                 if let Some(max) = self.max {
                     if n > &max {
-                        return Err(format!("Number is too large (max: {})", max));
+                        return Err(format!("{} is too large (max: {})", key, max));
                     }
                 }
 
                 if let Some(integer) = self.integer {
                     if integer && !n.fract().eq(&0.0) {
-                        return Err("Number is not an integer".to_string());
+                        return Err(format!("{} is not an integer", key));
                     }
                 }
 
                 Ok(())
             },
-            _ => Err("Type mismatch, expected Number".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Number", key))
         }
     }
 
-    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+    fn transform(&self, key: &str, value: &JSONValue) -> Result<JSONValue, String> {
         match value {
             JSONValue::Number(n) => {
                 let mut transformed = n.clone();
@@ -403,7 +405,7 @@ impl Validator for NumberType {
 
                 Ok(JSONValue::Number(transformed))
             },
-            _ => Err("Type mismatch, expected Number".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Number", key))
         }
     }
 }
@@ -497,63 +499,63 @@ impl ArrayType {
 }
 
 impl Validator for ArrayType {
-    fn validate(&self, value: &JSONValue) -> Result<(), String> {
+    fn validate(&self, key: &str, value: &JSONValue) -> Result<(), String> {
         match value {
             JSONValue::Array(arr) => {
                 if let Some(min) = self.min_length {
                     if arr.len() < min {
-                        return Err(format!("Array is too short (min: {})", min));
+                        return Err(format!("{} is too short (min: {})", key, min));
                     }
                 }
 
                 if let Some(max) = self.max_length {
                     if arr.len() > max {
-                        return Err(format!("Array is too long (max: {})", max));
+                        return Err(format!("{} is too long (max: {})", key, max));
                     }
                 }
 
                 if let Some(length) = self.length {
                     if arr.len() != length {
-                        return Err(format!("Array is not the correct length (length: {})", length));
+                        return Err(format!("{} is not the correct length (length: {})", key, length));
                     }
                 }
 
                 if let Some(empty) = self.empty {
                     if empty && arr.is_empty() {
-                        return Err("Array is empty".to_string());
+                        return Err(format!("{} is empty", key));
                     }
                 }
 
                 if let Some(rule) = &self.every {
                     for item in arr {
-                        rule.validate(item)?;
+                        rule.validate(key, item)?;
                     }
                 }
 
                 if let Some(rule) = &self.some {
                     for item in arr {
-                        if rule.validate(item).is_ok() {
+                        if rule.validate(key, item).is_ok() {
                             return Ok(());
                         }
                     }
-                    return Err("No items in the array match the rule".to_string());
+                    return Err(format!("No items in the {} match the rule", key));
                 }
 
                 if let Some((index, rule)) = &self.at {
                     if let Some(item) = arr.get(*index) {
-                        rule.validate(item)?;
+                        rule.validate(key, item)?;
                     } else {
-                        return Err(format!("Index {} not found", index));
+                        return Err(format!("In {}, index {} not found", key, index));
                     }
                 }
 
                 Ok(())
             },
-            _ => Err("Type mismatch, expected Array".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Array", key))
         }
     }
 
-    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+    fn transform(&self, key: &str, value: &JSONValue) -> Result<JSONValue, String> {
         match value {
             JSONValue::Array(arr) => {
                 let mut transformed = arr.clone();
@@ -568,7 +570,7 @@ impl Validator for ArrayType {
 
                 Ok(JSONValue::Array(transformed))
             },
-            _ => Err("Type mismatch, expected Array".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Array", key))
         }
     }
 }
@@ -612,22 +614,22 @@ impl BooleanType {
 }
 
 impl Validator for BooleanType {
-    fn validate(&self, value: &JSONValue) -> Result<(), String> {
+    fn validate(&self, key: &str, value: &JSONValue) -> Result<(), String> {
         match value {
             JSONValue::Boolean(b) => {
                 if let Some(expected) = self.value {
                     if b != &expected {
-                        return Err(format!("Expected {}", expected));
+                        return Err(format!("For {}, expected {}", key, expected));
                     }
                 }
 
                 Ok(())
             },
-            _ => Err("Type mismatch, expected Boolean".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Boolean", key))
         }
     }
 
-    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+    fn transform(&self, key: &str,value: &JSONValue) -> Result<JSONValue, String> {
         match value {
             JSONValue::Boolean(b) => {
                 let mut transformed = *b;
@@ -638,48 +640,48 @@ impl Validator for BooleanType {
 
                 Ok(JSONValue::Boolean(transformed))
             },
-            _ => Err("Type mismatch, expected Boolean".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Boolean", key))
         }
     }
 }
 
-pub struct ObjectType {
-    rules: HashMap<String, Box<dyn Validator>>
+pub struct ObjectType<'a> {
+    rules: OrderedMap<Box<dyn Validator + 'a>>
 }
 
-impl ObjectType {
+impl<'a> ObjectType<'a> {
     /// Create a new ObjectType instance.
     pub fn new() -> Self {
         Self {
-            rules: HashMap::new()
+            rules: OrderedMap::new()
         }
     }
 
     /// Add a rule for a property in the object.
     pub fn property(mut self, key: &str, rule: Box<dyn Validator>) -> Self {
-        self.rules.insert(key.to_string(), rule);
+        self.rules.insert(key, rule);
         self
     }
 
     /// Convert the ObjectType to a Box<dyn Validator>.
-    pub fn boxed(self) -> Box<dyn Validator> {
+    pub fn boxed(self) -> Box<dyn Validator + 'a> {
         Box::new(self)
     }
 }
 
-impl Validator for ObjectType {
-    fn validate(&self, value: &JSONValue) -> Result<(), String> {
+impl<'a> Validator for ObjectType<'a> {
+    fn validate(&self, key: &str, value: &JSONValue) -> Result<(), String> {
         match value {
             JSONValue::Object(obj) => {
-                for (key, rule) in &self.rules {
-                    match obj.get(key) {
-                        Some(value) => rule.validate(value)?,
-                        None => return Err(format!("Key '{}' not found", key))
+                for (subkey, rule) in self.rules.iter() {
+                    match obj.get(subkey as &str) {
+                        Some(value) => rule.validate(subkey, value)?,
+                        None => return Err(format!("In {}, key '{}' not found", key, subkey))
                     }
                 }
                 Ok(())
             },
-            _ => Err("Type mismatch, expected Object".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Object", key))
         }
     }
 }
@@ -699,10 +701,10 @@ impl NullType {
 }
 
 impl Validator for NullType {
-    fn validate(&self, value: &JSONValue) -> Result<(), String> {
+    fn validate(&self, key: &str, value: &JSONValue) -> Result<(), String> {
         match value {
             JSONValue::Null => Ok(()),
-            _ => Err("Type mismatch, expected Null".to_string()),
+            _ => Err(format!("Type of {} mismatch, expected Null", key)),
         }
     }
 }
