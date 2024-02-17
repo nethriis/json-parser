@@ -6,8 +6,6 @@ This Rust crate provides a robust and efficient solution for parsing JSON data i
 
 - **Strong Typing**: Leverages Rust's type system to ensure that JSON data is parsed into the correct Rust data structures.
 - **Error Handling**: Provides comprehensive error handling to catch and manage parsing errors, making your application more robust.
-- **Custom Deserialization**: Supports custom deserialization logic, allowing for complex data parsing scenarios.
-- **Serde Support**: Offers optional integration with `serde` for serialization and deserialization, enabling compatibility with the Rust ecosystem's de facto serialization framework.
 
 ## Getting Started
 
