@@ -6,6 +6,7 @@ This Rust crate provides a robust and efficient solution for parsing JSON data i
 
 - **Strong Typing**: Leverages Rust's type system to ensure that JSON data is parsed into the correct Rust data structures.
 - **Error Handling**: Provides comprehensive error handling to catch and manage parsing errors, making your application more robust.
+- **Schema-Based Validation**: This ensures that the JSON data adheres to a predefined schema, reducing runtime errors and enhancing data integrity.
 
 ## Getting Started
 
