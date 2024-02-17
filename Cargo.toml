@@ -1,10 +1,10 @@
 [package]
 name = "jsonparser"
-version = "0.1.9"
-description = "A Rust crate designed to efficiently parse JSON data into Rust's typed data structures"
+version = "0.2.0"
+description = "A Rust crate for efficient parsing and validation of JSON data into strongly typed Rust data structures, enabling data integrity checks."
 authors = ["Nethris <david.abou@epitech.eu>"]
 edition = "2021"
-keywords = ["json", "parser", "rust", "serialization", "validation"]
+keywords = ["json", "parser", "rust", "serialization", "validation", "transformation"]
 categories = ["parsing", "encoding", "parser-implementations", "web-programming"]
 documentation = "https://docs.rs/jsonparser"
 license = "MIT OR Apache-2.0"

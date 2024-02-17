@@ -1,9 +1,9 @@
-use jsonparser::{ArrayType, BooleanType, JSONParser, JSONSchema, NullType, NumberType, ObjectType, StringType};
+use jsonparser::{ArrayType, BooleanType, JSONParser, JSONSchema, JSONValue, NullType, NumberType, ObjectType, StringType};
 
 fn main() {
     let input = r#"
         {
-            "name": "John Doe",
+            "name": "     John Doe     ",
             "age": 30,
             "cars": [
                 {
@@ -37,7 +37,7 @@ fn main() {
     println!("{:?}", json);
 
     let schema = JSONSchema::new([
-        ("name", StringType::new().includes("John").boxed()),
+        ("name", StringType::new().includes("John").trim().boxed()),
         ("age", NumberType::new().gt(18.0).boxed()),
         ("cars", ArrayType::new().every(ObjectType::new().boxed()).boxed()),
         ("isStudent", BooleanType::new().falsy().boxed()),
@@ -51,7 +51,7 @@ fn main() {
     ]);
 
     match schema.validate(&json) {
-        Ok(_) => println!("Valid JSON"),
+        Ok(value) => println!("{:?}", value),
         Err(e) => eprintln!("Invalid JSON: {}", e)
     }
 }

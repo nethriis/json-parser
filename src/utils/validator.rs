@@ -33,19 +33,21 @@ impl<'a> JSONSchema<'a> {
     /// use jsonparser::{JSONValue, JSONSchema, StringType, NumberType};
     ///
     /// let schema = JSONSchema::new([
-    ///   ("name", StringType::new().min_length(6).boxed()),
+    ///   ("name", StringType::new().min_length(3).trim().boxed()),
     ///   ("age", NumberType::new().gt(18.0).boxed())
     /// ]);
     ///
     /// let json = JSONValue::Object({ /* ... */ });
     ///
     /// match schema.validate(&json) {
-    ///   Ok(_) => println!("Valid JSON"),
+    ///   Ok(value: JSONValue) => println!("{:?}", value),
     ///   Err(e) => eprintln!("Invalid JSON: {}", e)
     /// }
     /// ```
-    pub fn validate(&self, value: &JSONValue) -> Result<(), String> {
-        match value {
+    pub fn validate(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        let transformed = &self.transform(value)?;
+
+        match transformed {
             JSONValue::Object(obj) => {
                 for (key, rule) in &self.rules {
                     match obj.get(*key) {
@@ -53,15 +55,35 @@ impl<'a> JSONSchema<'a> {
                         None => return Err(format!("Key '{}' not found", *key))
                     }
                 }
-                Ok(())
+                Ok(transformed.clone())
             },
             _ => Err("Expected an object for validation".to_string()),
+        }
+    }
+
+    /// Transform the given JSONValue according to the schema.
+    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        match value {
+            JSONValue::Object(obj) => {
+                let mut transformed = obj.clone();
+
+                for (key, rule) in &self.rules {
+                    if let Some(value) = obj.get(*key) {
+                        transformed.insert(key, rule.transform(value)?);
+                    }
+                }
+                Ok(JSONValue::Object(transformed))
+            },
+            _ => Err("Expected an object for transformation".to_string()),
         }
     }
 }
 
 pub trait Validator {
     fn validate(&self, value: &JSONValue) -> Result<(), String>;
+    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        Ok(value.clone())
+    }
 }
 
 pub struct StringType {
@@ -70,7 +92,13 @@ pub struct StringType {
     length: Option<usize>,
     starts_with: Option<String>,
     ends_with: Option<String>,
-    includes: Option<String>
+    includes: Option<String>,
+    trim: bool,
+    trim_start: bool,
+    trim_end: bool,
+    lowercase: bool,
+    uppercase: bool,
+    transform: Option<Box<dyn Fn(&str) -> String>>
 }
 
 impl StringType {
@@ -82,7 +110,13 @@ impl StringType {
             length: None,
             starts_with: None,
             ends_with: None,
-            includes: None
+            includes: None,
+            trim: false,
+            trim_start: false,
+            trim_end: false,
+            lowercase: false,
+            uppercase: false,
+            transform: None
         }
     }
 
@@ -119,6 +153,42 @@ impl StringType {
     /// Set the string to include a specific substring.
     pub fn includes(mut self, value: &str) -> Self {
         self.includes = Some(value.to_string());
+        self
+    }
+
+    /// Trim the string before validation.
+    pub fn trim(mut self) -> Self {
+        self.trim = true;
+        self
+    }
+
+    /// Trim the start of the string before validation.
+    pub fn trim_start(mut self) -> Self {
+        self.trim_start = true;
+        self
+    }
+
+    /// Trim the end of the string before validation.
+    pub fn trim_end(mut self) -> Self {
+        self.trim_end = true;
+        self
+    }
+
+    /// Convert the string to lowercase before validation.
+    pub fn to_lowercase(mut self) -> Self {
+        self.lowercase = true;
+        self
+    }
+
+    /// Convert the string to uppercase before validation.
+    pub fn to_uppercase(mut self) -> Self {
+        self.uppercase = true;
+        self
+    }
+
+    /// Set a custom transformation function for the string.
+    pub fn transform<F: 'static + Fn(&str) -> String>(mut self, transform: F) -> Self {
+        self.transform = Some(Box::new(transform));
         self
     }
 
@@ -173,11 +243,51 @@ impl Validator for StringType {
             _ => Err("Type mismatch, expected String".to_string()),
         }
     }
+
+    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        match value {
+            JSONValue::String(s) => {
+                let mut transformed = s.clone();
+
+                if self.trim {
+                    transformed = transformed.trim().to_string();
+                }
+
+                if self.trim_start {
+                    transformed = transformed.trim_start().to_string();
+                }
+
+                if self.trim_end {
+                    transformed = transformed.trim_end().to_string();
+                }
+
+                if self.lowercase {
+                    transformed = transformed.to_lowercase();
+                }
+
+                if self.uppercase {
+                    transformed = transformed.to_uppercase();
+                }
+
+                if let Some(transform) = &self.transform {
+                    transformed = transform(&transformed);
+                }
+
+                Ok(JSONValue::String(transformed))
+            },
+            _ => Err("Type mismatch, expected String".to_string()),
+        }
+    }
 }
 
 pub struct NumberType {
     min: Option<f64>,
-    max: Option<f64>
+    max: Option<f64>,
+    integer: Option<bool>,
+    floor: bool,
+    ceil: bool,
+    round: bool,
+    transform: Option<Box<dyn Fn(f64) -> f64>>
 }
 
 impl NumberType {
@@ -185,7 +295,12 @@ impl NumberType {
     pub fn new() -> Self {
         Self {
             min: None,
-            max: None
+            max: None,
+            integer: None,
+            floor: false,
+            ceil: false,
+            round: false,
+            transform: None
         }
     }
 
@@ -198,6 +313,36 @@ impl NumberType {
     /// Set the maximum value of the number.
     pub fn lt(mut self, value: f64) -> Self {
         self.max = Some(value);
+        self
+    }
+
+    /// Set whether the number should be an integer.
+    pub fn integer(mut self) -> Self {
+        self.integer = Some(true);
+        self
+    }
+
+    /// Round the number down before validation.
+    pub fn floor(mut self) -> Self {
+        self.floor = true;
+        self
+    }
+
+    /// Round the number up before validation.
+    pub fn ceil(mut self) -> Self {
+        self.ceil = true;
+        self
+    }
+
+    /// Round the number to the nearest integer before validation.
+    pub fn round(mut self) -> Self {
+        self.round = true;
+        self
+    }
+
+    /// Set a custom transformation function for the number.
+    pub fn transform<F: 'static + Fn(f64) -> f64>(mut self, transform: F) -> Self {
+        self.transform = Some(Box::new(transform));
         self
     }
 
@@ -223,7 +368,40 @@ impl Validator for NumberType {
                     }
                 }
 
+                if let Some(integer) = self.integer {
+                    if integer && !n.fract().eq(&0.0) {
+                        return Err("Number is not an integer".to_string());
+                    }
+                }
+
                 Ok(())
+            },
+            _ => Err("Type mismatch, expected Number".to_string()),
+        }
+    }
+
+    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        match value {
+            JSONValue::Number(n) => {
+                let mut transformed = n.clone();
+
+                if self.floor {
+                    transformed = transformed.floor();
+                }
+
+                if self.ceil {
+                    transformed = transformed.ceil();
+                }
+
+                if self.round {
+                    transformed = transformed.round();
+                }
+
+                if let Some(transform) = &self.transform {
+                    transformed = transform(transformed);
+                }
+
+                Ok(JSONValue::Number(transformed))
             },
             _ => Err("Type mismatch, expected Number".to_string()),
         }
@@ -237,7 +415,9 @@ pub struct ArrayType {
     empty: Option<bool>,
     every: Option<Box<dyn Validator>>,
     some: Option<Box<dyn Validator>>,
-    at: Option<(usize, Box<dyn Validator>)>
+    at: Option<(usize, Box<dyn Validator>)>,
+    truncate: Option<usize>,
+    transform: Option<Box<dyn Fn(Vec<JSONValue>) -> Vec<JSONValue>>>
 }
 
 impl ArrayType {
@@ -250,7 +430,9 @@ impl ArrayType {
             empty: None,
             every: None,
             some: None,
-            at: None
+            at: None,
+            truncate: None,
+            transform: None
         }
     }
 
@@ -293,6 +475,18 @@ impl ArrayType {
     /// Set a rule for a specific item in the array.
     pub fn at(mut self, index: usize, rule: Box<dyn Validator>) -> Self {
         self.at = Some((index, rule));
+        self
+    }
+
+    /// Truncate the array before validation.
+    pub fn truncate(mut self, length: usize) -> Self {
+        self.truncate = Some(length);
+        self
+    }
+
+    /// Set a custom transformation function for the array.
+    pub fn transform<F: 'static + Fn(Vec<JSONValue>) -> Vec<JSONValue>>(mut self, transform: F) -> Self {
+        self.transform = Some(Box::new(transform));
         self
     }
 
@@ -358,17 +552,38 @@ impl Validator for ArrayType {
             _ => Err("Type mismatch, expected Array".to_string()),
         }
     }
+
+    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        match value {
+            JSONValue::Array(arr) => {
+                let mut transformed = arr.clone();
+
+                if let Some(len) = self.truncate {
+                    transformed.truncate(len);
+                }
+
+                if let Some(transform) = &self.transform {
+                    transformed = transform(transformed);
+                }
+
+                Ok(JSONValue::Array(transformed))
+            },
+            _ => Err("Type mismatch, expected Array".to_string()),
+        }
+    }
 }
 
 pub struct BooleanType {
-    value: Option<bool>
+    value: Option<bool>,
+    transform: Option<Box<dyn Fn(bool) -> bool>>
 }
 
 impl BooleanType {
     /// Create a new BooleanType instance.
     pub fn new() -> Self {
         Self {
-            value: None
+            value: None,
+            transform: None
         }
     }
 
@@ -381,6 +596,12 @@ impl BooleanType {
     /// Set the expected value to false.
     pub fn falsy(mut self) -> Self {
         self.value = Some(false);
+        self
+    }
+
+    /// Set a custom transformation function for the boolean.
+    pub fn transform<F: 'static + Fn(bool) -> bool>(mut self, transform: F) -> Self {
+        self.transform = Some(Box::new(transform));
         self
     }
 
@@ -401,6 +622,21 @@ impl Validator for BooleanType {
                 }
 
                 Ok(())
+            },
+            _ => Err("Type mismatch, expected Boolean".to_string()),
+        }
+    }
+
+    fn transform(&self, value: &JSONValue) -> Result<JSONValue, String> {
+        match value {
+            JSONValue::Boolean(b) => {
+                let mut transformed = *b;
+
+                if let Some(transform) = &self.transform {
+                    transformed = transform(transformed);
+                }
+
+                Ok(JSONValue::Boolean(transformed))
             },
             _ => Err("Type mismatch, expected Boolean".to_string()),
         }

@@ -6,7 +6,7 @@ This Rust crate provides a robust and efficient solution for parsing JSON data i
 
 - **Strong Typing**: Leverages Rust's type system to ensure that JSON data is parsed into the correct Rust data structures.
 - **Error Handling**: Provides comprehensive error handling to catch and manage parsing errors, making your application more robust.
-- **Schema-Based Validation**: This ensures that the JSON data adheres to a predefined schema, reducing runtime errors and enhancing data integrity.
+- **Schema-Based Validation**: This ensures that the JSON data adheres to a predefined schema, reducing runtime errors, enhancing data integrity and allows you to transform JSON values before validation.
 
 ## Getting Started
 
@@ -14,7 +14,7 @@ To use this crate in your project, add it to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-jsonparser = "0.1.9"
+jsonparser = "0.2."
 ```
 
 Then, import it in your Rust file:
@@ -85,7 +85,7 @@ use jsonparser::{JSONParser, JSONValue, JSONSchema, StringType, NumberType, Bool
 
 let json: JSONValue = JSONParser::from(r#"{ "name": "John Doe", "age": 30, "is_student": false }"#).unwrap();
 let schema = JSONSchema::new([
-    ("name", StringType::new().min_length(3).max_length(50).boxed()),
+    ("name", StringType::new().min_length(3).trim().boxed()),
     ("age", NumberType::new().gt(18).lt(100).boxed()),
     ("is_student", BooleanType::new().falsy().boxed()),
 ]);
