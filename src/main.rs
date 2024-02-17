@@ -1,4 +1,4 @@
-use jsonparser::{ArrayType, BooleanType, JSONParser, JSONSchema, JSONValue, NullType, NumberType, ObjectType, StringType};
+use jsonparser::{ArrayType, BooleanType, JSONParser, JSONSchema, NullType, NumberType, ObjectType, StringType};
 
 fn main() {
     let input = r#"
