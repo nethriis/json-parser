@@ -100,3 +100,5 @@ Contributions are welcome! If you have suggestions for improvements or find any 
 ## License
 
 This project is licensed under the [Apache-2.0 license](https://github.com/nethriis/json-parser/blob/main/LICENSE).
+
+_Generated with [MarkdownView](https://www.markdownview.com) ✨_
